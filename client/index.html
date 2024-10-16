@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mamba Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .form-container {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+         /* Specific styles for the Generate Seed button */
+        .btn-generate-seed {
+            background-color: #4CAF50; /* Green */
+            color: white;
+        }
+
+        .btn-generate-seed:hover {
+            background-color: #45a049; /* Darker Green */
+        }
+
+        /* Specific styles for the Generate Text button */
+        .btn-generate-text {
+            background-color: #008CBA; /* Blue */
+            color: white;
+        }
+
+        .btn-generate-text:hover {
+            background-color: #007BB5; /* Darker Blue */
+        }
+            #output {
+                border: 1px solid #ccc;
+                padding: 10px;
+                margin-top: 20px;
+                white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Mamba text generation</h1>
+
+    <div class="form-container">
+        <label for="inputText">Input Text</label>
+        <input type="text" id="inputText" placeholder="Enter the prompt" value="Once upon a time" />
+
+        <label for="genlen">Generation Length</label>
+        <input type="number" id="genlen" placeholder="Max generation length" value="100" />
+
+        <label for="temperature">Temperature</label>
+        <input type="number" step="0.01" id="temperature" placeholder="Temperature" value="0.7" />
+
+        <label for="topk">Top-K</label>
+        <input type="number" id="topk" placeholder="Top-K" value="50" />
+
+        <label for="topp">Top-P</label>
+        <input type="number" step="0.01" id="topp" placeholder="Top-P" value="0.9" />
+
+        <label for="minp">Min-P</label>
+        <input type="number" step="0.01" id="minp" placeholder="Min-P" value="0.0" />
+
+        <label for="repetition_penalty">Repetition Penalty</label>
+        <input type="number" step="0.01" id="repetition_penalty" placeholder="Repetition Penalty" value="1.0" />
+
+        <label for="seed">Random Seed</label>
+        <input type="number" id="seed" placeholder="Seed" value="42" />
+
+        <button class="btn-generate-seed" onclick="generateSeed()">🎲Random🎲</button>
+        <button class="btn-generate-text" onclick="generateText()">Generate Text</button>
+    </div>
+
+    <h2>Model Output Text</h2>
+    <div id="output">The generated text will appear here...</div>
+
+    <script>
+        function generateSeed() {
+            const seedInput = document.getElementById("seed");
+            seedInput.value = Math.floor(Math.random() * 1000000);  // Generate a random seed
+        }
+
+        async function generateText() {
+            const inputText = document.getElementById("inputText").value;
+            const genlen = document.getElementById("genlen").value;
+            const temperature = document.getElementById("temperature").value;
+            const topk = document.getElementById("topk").value;
+            const topp = document.getElementById("topp").value;
+            const minp = document.getElementById("minp").value;
+            const repetition_penalty = document.getElementById("repetition_penalty").value;
+            const seed = document.getElementById("seed").value;
+
+            const outputDiv = document.getElementById("output");
+            outputDiv.innerHTML = "";
+
+            // Send a POST request to the server using fetch API
+            fetch("http://127.0.0.1:8000/generate/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    input_text: inputText,
+                    max_length: parseInt(genlen),
+                    temperature: parseFloat(temperature),
+                    topk: parseInt(topk),
+                    topp: parseFloat(topp),
+                    minp: parseFloat(minp),
+                    repetition_penalty: parseFloat(repetition_penalty),
+                    seed: parseInt(seed)
+                })
+            }).then(response => {
+                // Get the readable stream
+                console.log(response)
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                // Function to read and process each chunk
+                function readChunk() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            return;
+                        }
+                        // Decode and append the chunk to the output
+                        outputDiv.innerHTML += decoder.decode(value, { stream: true });
+                        // Continue reading
+                        readChunk();
+                    });
+                }
+
+                // Start reading the stream
+                readChunk();
+            }).catch(err => {
+                console.error('Error while fetching:', err);
+                outputDiv.innerHTML = "Error occurred while generating text.";
+            });
+        }
+    </script>
+
+</body>
+</html>
